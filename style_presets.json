@@ -1,0 +1,335 @@
+{
+    "Default": {
+        "sd_model_checkpoint": "CounterfeitV30_v30.safetensors [cbfba64e66]",
+        "sd_vae": "vae-ft-mse-840000-ema-pruned.safetensors",
+        "payload": {
+            "prompt": "masterpiece,best quality,",
+            "negative_prompt": "lowres,bad anatomy,bad hands,text,error,missing fingers,extra digit,fewer digits,cropped,worst quality,low quality,normal quality,jpeg artifacts,signature,watermark,username,blurry,",
+            "sampler_name": "DPM++ 2M Karras",
+            "denoising_strength": 0.75,
+            "steps": 20,
+            "cfg_scale": 7,
+            "width": 960,
+            "height": 540
+        }
+    },
+    "二维_效果1": {
+        "sd_model_checkpoint": "toonyou_beta6.saferensors[e8d456c42e]",
+        "sd_vae": "vae-ft-mse-840000-ema-pruned.safetensors",
+        "payload": {
+            "prompt": "masterpiece,best quality,",
+            "negative_prompt": "EasyNegative",
+            "sampler_name": "DPM++ 2M Karras",
+            "denoising_strength": 0.8,
+            "steps": 20,
+            "cfg_scale": 7,
+            "width": 1920,
+            "height": 1080,
+            "alwayson_scripts": {
+                "controlnet": {
+                    "args": [
+                        {
+                            "input_image": null,
+                            "module": "hed_safe",
+                            "model": "control_v11p_sd15_softedge [a8575a2a]",
+                            "weight_min": 0.35,
+                            "weight_max": 0.8,
+                            "resize_mode": 0,
+                            "guidance_start": 0,
+                            "guidance_end": 1,
+                            "processor_res": 512,
+                            "pixel_perfect": true
+                        },
+                        {
+                            "input_image": null,
+                            "module": "inpaint",
+                            "model": "control_v11p_sd15_inpaint [ebff9138]",
+                            "weight_min": 0.05,
+                            "weight_max": 0.5,
+                            "resize_mode": 0,
+                            "guidance_start": 0,
+                            "guidance_end": 1,
+                            "pixel_perfect": true
+                        },
+                        {
+                            "input_image": null,
+                            "module": "lineart_anime",
+                            "model": "control_v11p_sd15_lineart [43d4be0d]",
+                            "weight_min": 0.35,
+                            "weight_max": 0.8,
+                            "resize_mode": 0,
+                            "guidance_start": 0,
+                            "guidance_end": 1,
+                            "processor_res": 512,
+                            "pixel_perfect": true
+                        },
+                        {
+                            "input_image": null,
+                            "module": null,
+                            "model": "control_v11e_sd15_ip2p [c4bb465c]",
+                            "weight_min": 0.05,
+                            "weight_max": 0.35,
+                            "resize_mode": 0,
+                            "guidance_start": 0,
+                            "guidance_end": 1,
+                            "pixel_perfect": true
+                        }
+                    ]
+                }
+            }
+        }
+    },
+    "二维_效果2": {
+        "sd_model_checkpoint": "CounterfeitV30_v30.safetensors [cbfba64e66]",
+        "sd_vae": "vae-ft-mse-840000-ema-pruned.safetensors",
+        "payload": {
+            "prompt": "masterpiece,best quality,",
+            "negative_prompt": "EasyNegative",
+            "sampler_name": "DPM++ 2M Karras",
+            "denoising_strength": 0.8,
+            "steps": 20,
+            "cfg_scale": 7,
+            "width": 1920,
+            "height": 1080,
+            "alwayson_scripts": {
+                "controlnet": {
+                    "args": [
+                        {
+                            "input_image": null,
+                            "module": "hed_safe",
+                            "model": "control_v11p_sd15_softedge [a8575a2a]",
+                            "weight_min": 0.35,
+                            "weight_max": 0.8,
+                            "resize_mode": 0,
+                            "guidance_start": 0,
+                            "guidance_end": 1,
+                            "processor_res": 512,
+                            "pixel_perfect": true
+                        },
+                        {
+                            "input_image": null,
+                            "module": "inpaint",
+                            "model": "control_v11p_sd15_inpaint [ebff9138]",
+                            "weight_min": 0.05,
+                            "weight_max": 0.5,
+                            "resize_mode": 0,
+                            "guidance_start": 0,
+                            "guidance_end": 1,
+                            "pixel_perfect": true
+                        },
+                        {
+                            "input_image": null,
+                            "module": "lineart_anime",
+                            "model": "control_v11p_sd15_lineart [43d4be0d]",
+                            "weight_min": 0.35,
+                            "weight_max": 0.8,
+                            "resize_mode": 0,
+                            "guidance_start": 0,
+                            "guidance_end": 1,
+                            "processor_res": 512,
+                            "pixel_perfect": true
+                        },
+                        {
+                            "input_image": null,
+                            "module": null,
+                            "model": "control_v11e_sd15_ip2p [c4bb465c]",
+                            "weight_min": 0.05,
+                            "weight_max": 0.35,
+                            "resize_mode": 0,
+                            "guidance_start": 0,
+                            "guidance_end": 1,
+                            "pixel_perfect": true
+                        }
+                    ]
+                }
+            }
+        }
+    },
+    "二维_美漫": {
+        "sd_model_checkpoint": "pikasAnimatedMix_10Pruned.safetensors [22d48929c2]",
+        "sd_vae": "vae-ft-mse-840000-ema-pruned.safetensors",
+        "payload": {
+            "prompt": "masterpiece,best quality",
+            "negative_prompt": "EasyNegative",
+            "sampler_name": "DPM++ 2M Karras",
+            "denoising_strength": 0.75,
+            "steps": 20,
+            "cfg_scale": 7,
+            "width": 1920,
+            "height": 1080,
+            "alwayson_scripts": {
+                "controlnet": {
+                    "args": [
+                        {
+                            "input_image": null,
+                            "module": "hed_safe",
+                            "model": "control_v11p_sd15_softedge [a8575a2a]",
+                            "weight_min": 0.35,
+                            "weight_max": 0.8,
+                            "resize_mode": 0,
+                            "guidance_start": 0,
+                            "guidance_end": 1,
+                            "processor_res": 512,
+                            "pixel_perfect": true
+                        },
+                        {
+                            "input_image": null,
+                            "module": "inpaint",
+                            "model": "control_v11p_sd15_inpaint [ebff9138]",
+                            "weight_min": 0.05,
+                            "weight_max": 0.5,
+                            "resize_mode": 0,
+                            "guidance_start": 0,
+                            "guidance_end": 1,
+                            "pixel_perfect": true
+                        },
+                        {
+                            "input_image": null,
+                            "module": "lineart_anime",
+                            "model": "control_v11p_sd15_lineart [43d4be0d]",
+                            "weight_min": 0.35,
+                            "weight_max": 0.8,
+                            "resize_mode": 0,
+                            "guidance_start": 0,
+                            "guidance_end": 1,
+                            "processor_res": 512,
+                            "pixel_perfect": true
+                        },
+                        {
+                            "input_image": null,
+                            "module": null,
+                            "model": "control_v11e_sd15_ip2p [c4bb465c]",
+                            "weight_min": 0.05,
+                            "weight_max": 0.35,
+                            "resize_mode": 0,
+                            "guidance_start": 0,
+                            "guidance_end": 1,
+                            "pixel_perfect": true
+                        }
+                    ]
+                }
+            }
+        }
+    },
+    "二维_平涂": {
+        "sd_model_checkpoint": "aniflatmixAnimeFlatColorStyle_v20.safetensors [b0d25db787]",
+        "sd_vae": "vae-ft-mse-840000-ema-pruned.safetensors",
+        "payload": {
+            "prompt": "masterpiece,best quality,",
+            "negative_prompt": "EasyNegative",
+            "sampler_name": "DPM++ 2M Karras",
+            "denoising_strength": 0.3,
+            "steps": 25,
+            "cfg_scale": 7,
+            "width": 1280,
+            "height": 720,
+            "alwayson_scripts": {
+                "controlnet": {
+                    "args": [
+                        {
+                            "input_image": null,
+                            "module": "hed_safe",
+                            "model": "control_v11p_sd15_softedge [a8575a2a]",
+                            "weight_min": 0.35,
+                            "weight_max": 0.8,
+                            "resize_mode": 0,
+                            "guidance_start": 0,
+                            "guidance_end": 1,
+                            "processor_res": 512,
+                            "pixel_perfect": true
+                        },
+                        {
+                            "input_image": null,
+                            "module": "inpaint",
+                            "model": "control_v11p_sd15_inpaint [ebff9138]",
+                            "weight_min": 0.05,
+                            "weight_max": 0.25,
+                            "resize_mode": 0,
+                            "guidance_start": 0,
+                            "guidance_end": 1,
+                            "pixel_perfect": true
+                        },
+                        {
+                            "input_image": null,
+                            "module": "depth_leres",
+                            "model": "control_v11f1p_sd15_depth [cfd03158]",
+                            "weight_min": 1,
+                            "weight_max": 1,
+                            "resize_mode": 0,
+                            "guidance_start": 0,
+                            "guidance_end": 1,
+                            "processor_res": 512,
+                            "pixel_perfect": true
+                        }
+                    ]
+                }
+            }
+        }
+    },
+    "真人_效果1": {
+        "sd_model_checkpoint": "majicmixRealistic_v6.safetensors [e4a30e4607]",
+        "sd_vae": "vae-ft-mse-840000-ema-pruned.safetensors",
+        "payload": {
+            "prompt": "masterpiece,best quality,",
+            "negative_prompt": "EasyNegative",
+            "sampler_name": "DPM++ 2M Karras",
+            "denoising_strength": 0.75,
+            "steps": 20,
+            "cfg_scale": 7,
+            "width": 1920,
+            "height": 1080,
+            "alwayson_scripts": {
+                "controlnet": {
+                    "args": [
+                        {
+                            "input_image": null,
+                            "module": "hed_safe",
+                            "model": "control_v11p_sd15_softedge [a8575a2a]",
+                            "weight_min": 0.35,
+                            "weight_max": 0.8,
+                            "resize_mode": 0,
+                            "guidance_start": 0,
+                            "guidance_end": 1,
+                            "processor_res": 512,
+                            "pixel_perfect": true
+                        },
+                        {
+                            "input_image": null,
+                            "module": "inpaint",
+                            "model": "control_v11p_sd15_inpaint [ebff9138]",
+                            "weight_min": 0.05,
+                            "weight_max": 0.35,
+                            "resize_mode": 0,
+                            "guidance_start": 0,
+                            "guidance_end": 1,
+                            "pixel_perfect": true
+                        },
+                        {
+                            "input_image": null,
+                            "module": "lineart_anime",
+                            "model": "control_v11p_sd15_lineart [43d4be0d]",
+                            "weight_min": 0.35,
+                            "weight_max": 0.8,
+                            "resize_mode": 0,
+                            "guidance_start": 0,
+                            "guidance_end": 1,
+                            "processor_res": 512,
+                            "pixel_perfect": true
+                        },
+                        {
+                            "input_image": null,
+                            "module": null,
+                            "model": "control_v11e_sd15_ip2p [c4bb465c]",
+                            "weight_min": 0.05,
+                            "weight_max": 0.5,
+                            "resize_mode": 0,
+                            "guidance_start": 0,
+                            "guidance_end": 1,
+                            "pixel_perfect": true
+                        }
+                    ]
+                }
+            }
+        }
+    }
+}
