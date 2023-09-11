@@ -17,6 +17,7 @@ import requests
 import gradio as gr
 import io
 import datetime
+import copy
 from modules import scripts, shared, shared_items, script_callbacks, extras, errors,sd_models
 
 
@@ -272,7 +273,7 @@ def start_i2i(i2i_prompt_styles,i2i_checkpoints,i2i_vae,i2i_prompt_input,i2i_neg
     }
     if i2i_prompt_styles != "Default":#有预设
         if "payload" in style_presets[i2i_prompt_styles].keys():
-            payload_from_preset = style_presets[i2i_prompt_styles]["payload"]
+            payload_from_preset = copy.deepcopy(style_presets[i2i_prompt_styles]["payload"])
             if "alwayson_scripts" in payload_from_preset.keys() and "controlnet" in payload_from_preset["alwayson_scripts"].keys():
                 print(u"读取预设的controlnet参数！")
                 cnet_args = payload_from_preset["alwayson_scripts"]["controlnet"]["args"]
