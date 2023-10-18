@@ -19,7 +19,7 @@ import io
 import datetime
 import copy
 from modules import scripts, shared, shared_items, script_callbacks, extras, errors,sd_models
-
+from tqdm import tqdm
 
 sd_url = "http://127.0.0.1:7860"
 
@@ -92,14 +92,14 @@ def set_parm_presets(i2i_prompt_styles, i2i_checkpoints, i2i_vae):
         if params["sd_model_checkpoint"] in shared.list_checkpoint_tiles():
             i2i_checkpoints = params["sd_model_checkpoint"]
         else:
-            print(u"错误:没有在预设json找到 checkpoint!")
+            print(u"[Style-Converter] 错误:没有在预设json找到 checkpoint " + params["sd_model_checkpoint"])
     if "sd_vae" in params.keys():
         if params["sd_vae"] in shared_items.sd_vae_items():
             i2i_vae = params["sd_vae"]
         elif params["sd_vae"] == "None":
             i2i_vae = None
         else:
-            print(u"错误:没有在预设json找到 VAE!")
+            print(u"[Style-Converter] 错误:没有在预设json找到 VAE " + params["sd_vae"])
     # print(params)
     payload = params["payload"]
     i2i_prompt_input = payload["prompt"] if "prompt" in payload.keys() else ""
@@ -181,10 +181,10 @@ def detect_image_size(imginput,width,height):
         return [image[1], image[0]]
 
 # 如果输出图片存在的话，获取输出图的seed
-def reuse_seed(i2i_image_output):
+def reuse_seed(styleconverter_image_output):
     seed = -1
-    if i2i_image_output is not None:
-        _, pnginfo, _ = extras.run_pnginfo(i2i_image_output)
+    if styleconverter_image_output is not None:
+        _, pnginfo, _ = extras.run_pnginfo(styleconverter_image_output)
         try:
             png_list = re.split(" |,",pnginfo)
             # print(png_list)
@@ -193,12 +193,15 @@ def reuse_seed(i2i_image_output):
                 seed = png_list[index+1]
         except json.decoder.JSONDecodeError:
             if pnginfo:
-                errors.report(f"Error parsing JSON generation info: {pnginfo}")
+                errors.report(f"[Style-Converter] Error parsing JSON generation info: {pnginfo}")
     return seed
     
 def api_getoptions(option:str):
     response = requests.get(url=f'{sd_url}/sdapi/v1/options')
     r = response.json()
+    if response.status_code != 200:
+        errors.report(f"[Style-Converter] Error getting options: {response.text}")
+        return
     return r[option]
 
 # 使用api自带存储在图生图文件夹
@@ -225,11 +228,31 @@ def api_getoptions(option:str):
 #     png_name = save_path + "/" + numstr + "-" + str(seed) + ".png"
 #     return png_name
 
+def get_dataframelist_from_dir(i2ibatch_dir_input):
+    dataframe_list = []
+    if os.path.exists(i2ibatch_dir_input):
+        for i2ibatch_dir_input_file in os.listdir(i2ibatch_dir_input):
+            if i2ibatch_dir_input_file.endswith((".jpg",".JPG",".jpeg",".png",".PNG",".tga",".TGA")):
+                dataframe_list.append([i2ibatch_dir_input_file,""])
+    return dataframe_list
+
+def i2ibatch_dir_input_change(i2ibatch_dir_input):
+    dataframe_list = []
+    dataframe_list = get_dataframelist_from_dir(i2ibatch_dir_input)
+    return gr.Dataframe.update(value=dataframe_list)
+
+def i2ibatch_prompttravel_checkbox_change(i2ibatch_prompttravel_checkbox):
+    if i2ibatch_prompttravel_checkbox:
+        dataframe_visible = True
+    else:
+        dataframe_visible = False
+    return gr.Dataframe.update(visible=dataframe_visible)
+
 def api_getimg(api:str,payload:dict):
     response = requests.post(url=f'{sd_url}/{api}', json=payload)
     r = response.json()
     if response.status_code != 200:
-        print(response)
+        errors.report(f"[Style-Converter] Error getting options: {response.text}")
         return
     #使用controlnet后会返回controlnet控制图片，结果图在第一张
     result = r['images'][0]
@@ -242,16 +265,19 @@ def api_getimg(api:str,payload:dict):
     # image.save(pngname, pnginfo=pnginfo)
     return image
 
-
-
-def start_i2i(i2i_prompt_styles,i2i_checkpoints,i2i_vae,i2i_prompt_input,i2i_negativeprompt_input,i2i_image_input,i2i_seed,i2i_width,i2i_height,i2i_cfg_scale,i2i_denoising_strength,i2i_sampling_steps,i2i_controlnet_strength):
+def make_payload(i2i_prompt_styles,i2i_checkpoints,i2i_vae,i2i_prompt_input,i2i_negativeprompt_input,image_base64_bytes,i2i_seed,i2i_width,i2i_height,i2i_cfg_scale,i2i_denoising_strength,i2i_sampling_steps,i2i_controlnet_strength):
     """
-    图生图
+    [summary]
+
+    :param param: [description]
+    :type param: [type]
+    :return: [description]
+    :rtype: [type]
     """
     #初始化
-    base64_bytes = numpy_to_base64(i2i_image_input)
-    init_images = [base64_bytes]
-    print(i2i_checkpoints)
+    # base64_bytes = numpy_to_base64(i2i_image_input)
+    init_images = [image_base64_bytes]
+    # print(i2i_checkpoints)
     payload = {            
         "sampler_name": "DPM++ 2M Karras",
         "override_settings": {
@@ -294,101 +320,169 @@ def start_i2i(i2i_prompt_styles,i2i_checkpoints,i2i_vae,i2i_prompt_input,i2i_neg
             print(u"警告！预设文件中没找到payload")
     else:
         print(u"没有预设，图生图")
-    # save_json("savejason1.json",payload)
-    image = api_getimg("sdapi/v1/img2img",payload)
-    return image  
+    return payload
+
+def start_generate(styleconver_selected_tab,i2i_prompt_styles,i2i_checkpoints,i2i_vae,i2i_prompt_input,i2i_negativeprompt_input,i2i_image_input,i2i_seed,i2i_width,i2i_height,
+                   i2i_cfg_scale,i2i_denoising_strength,i2i_sampling_steps,i2i_controlnet_strength,i2ibatch_dir_input,i2ibatch_prompttravel_checkbox,i2ibatch_prompttravel_dataframe):
+    """
+    图生图
+    """
+    # isbatch = styleconver_selected_tab==1
+    images=[]
+    base64_bytes = numpy_to_base64(i2i_image_input)
+    if styleconver_selected_tab == 0:
+        image_base64_bytes = numpy_to_base64(i2i_image_input)
+        payload=make_payload(i2i_prompt_styles,i2i_checkpoints,i2i_vae,i2i_prompt_input,i2i_negativeprompt_input,image_base64_bytes,i2i_seed,i2i_width,i2i_height,i2i_cfg_scale,
+                             i2i_denoising_strength,i2i_sampling_steps,i2i_controlnet_strength)
+        # save_json("savejason1.json",payload)
+        images.append(api_getimg("sdapi/v1/img2img",payload))
+    elif styleconver_selected_tab == 1:
+        dateframelist=[]
+        if i2ibatch_prompttravel_checkbox:
+            dateframelist=i2ibatch_prompttravel_dataframe
+        else:
+            dateframelist=get_dataframelist_from_dir(i2ibatch_dir_input)
+        static_prompt = i2i_prompt_input
+        with tqdm(total=len(dateframelist)) as pbar:
+            pbar.set_description("Generating images") 
+            for datalist in dateframelist:
+                if datalist[0] == "":
+                    pass
+                image_path = i2ibatch_dir_input+"\\"+datalist[0]
+                with open(image_path, "rb") as img_file:
+                    byte_content = img_file.read()
+                base64_bytes = base64.b64encode(byte_content)
+                image_base64_bytes = base64_bytes.decode('utf-8')
+                if static_prompt.endswith(","):
+                    i2ibatch_prompt_input = static_prompt + datalist[1]
+                else:
+                    i2ibatch_prompt_input = static_prompt + "," + datalist[1]
+                payload = make_payload(i2i_prompt_styles,i2i_checkpoints,i2i_vae,i2ibatch_prompt_input,i2i_negativeprompt_input,image_base64_bytes,i2i_seed,i2i_width,i2i_height,i2i_cfg_scale,
+                             i2i_denoising_strength,i2i_sampling_steps,i2i_controlnet_strength)
+                images.append(api_getimg("sdapi/v1/img2img",payload))
+                pbar.update(1)
+        pbar.close()
+    else:
+        errors.report(f"styleconver_selected_tab error: {styleconver_selected_tab}")
+    return images 
  
 def create_UI():
     # demo_ui
     with gr.Blocks(analytics_enabled=False) as demo_ui:
-        with gr.Tab("img2img"):
-            with gr.Row(elem_id=f"i2i_toprow", variant="panel", equal_height=True):#上半部分主页面.style(equal_height=True)
-                with gr.Column(elem_id=f"i2i_leftcolimn", scale=6):
-                #     with gr.Row(elem_classes=["i2i-imageoutput-row"]):
-                    i2i_image_output = gr.Image(type="pil", height=540)#.style(height=540)
-                with gr.Column(elem_id=f"i2i_rightcolimn", scale=4):
-                    with gr.Row():
-                        with gr.Row(elem_id=f"i2i_styles_row"):
-                            i2i_style_presets = gr.Dropdown(label="Style preset", elem_id=f"i2i_styles", choices = style_presets_list, value="Dafault", multiselect=False)
-                            i2i_refresh_button = ToolButton(value=refresh_symbol,visible=True)
-                            i2i_refresh_button.click(fn=refresh_presets, outputs=i2i_style_presets)
-                        with gr.Column(elem_id=f"i2i_actions_column"):
-                            with gr.Row(elem_id=f"i2i_generate_box", elem_classes="generate-box"):
-                                i2i_interrupt = gr.Button('Interrupt', elem_id=f"i2i_interrupt", elem_classes="generate-box-interrupt")
-                                i2i_skip = gr.Button('Skip', elem_id=f"i2i_skip", elem_classes="generate-box-skip")
-                                i2i_submit = gr.Button('Generate', elem_id=f"i2i_generate", variant='primary')
-                    with gr.Row():
-                        i2i_checkpoints = gr.Dropdown(label="Stable Diffusion checkpoint", elem_id=f"i2i_checkpoints", choices=shared.list_checkpoint_tiles(), value=checkpoint, multiselect=False)
-                        i2i_checkpointsrefresh_button = ToolButton(value=refresh_symbol,visible=True)
-                        i2i_checkpointsrefresh_button.click(fn=shared.refresh_checkpoints, inputs=[], outputs=[])#shared.refresh_checkpoints()
-                        i2i_vae = gr.Dropdown(label="SD VAE", elem_id=f"i2i_vae", choices=shared_items.sd_vae_items(), value=vae, multiselect=False)
-                        i2i_vaerefresh_button = ToolButton(value=refresh_symbol,visible=True)
-                        i2i_vaerefresh_button.click(fn=shared_items.refresh_vae_list, inputs=[], outputs=[])
-                        # i2i_checkpoints.change(fn=change_checkpoint, inputs=[i2i_checkpoints], outputs=[i2i_checkpoints])
-                        # i2i_vae.change(fn=change_vae, inputs=[i2i_vae], outputs=[i2i_vae])
-                    with gr.Row(elem_classes=["i2i-image-row"], equal_height=True):#.style(equal_height=True):
-                        i2i_image_input = gr.Image(type="filepath", height=380)#.style(height=380)
-            with gr.Row(elem_id=f"i2i_downrow", variant="panel", equal_height=True):#.style(equal_height=True):#下半部分参数
-                with gr.Column(elem_id=f"i2i_prompt_container", scale=6):
-                    with gr.Column(scale=2):
+        with gr.Row(elem_id=f"styleconverter_toprow"):
+            # 左侧
+            with gr.Column(elem_id=f"styleconverter_leftcolumn", variant="panel", scale=0.7):
+                styleconverter_image_output = gr.Gallery(
+                    label="Output",
+                    show_label=False,
+                    elem_id=f"styleconverter_image_output",
+                    height=480,
+                    preview=True,
+                    object_fit="contain",
+                    columns=4)
+                with gr.Row(elem_id=f"styleconverter_downrow", equal_height=True):
+                    with gr.Column(elem_id=f"styleconverter_prompt_container", scale=0.9):
                         i2i_prompt_input = gr.Textbox(
                             label="Prompt", 
-                            elem_id=f"i2i_prompt", 
+                            elem_id=f"styleconverter_prompt", 
                             show_label=False, 
                             lines=3, 
                             placeholder="Prompt (press Ctrl+Enter or Alt+Enter to generate)", 
                             elem_classes=["prompt"])
-                    with gr.Column(scale=2):
                         i2i_negativeprompt_input = gr.Textbox(
                             label="Negative prompt", 
-                            elem_id=f"i2i_neg_prompt", 
+                            elem_id=f"styleconverter_neg_prompt", 
                             show_label=False, 
                             lines=3, 
                             placeholder="Negative prompt (press Ctrl+Enter or Alt+Enter to generate)", 
                             elem_classes=["prompt"])
-                    with gr.Row(scale=1, elem_id=f"i2i_seed_container", variant="compact"):
-                        i2i_seed = gr.Number(label='Seed', value=-1, elem_id=f"i2i_seed", container=False)
-                        #i2i_seed.style(container=False)
-                        i2i_random_seed = ToolButton(value=random_symbol, visible=True, elem_id=f"i2i_random_seed", label='Random seed')
-                        i2i_random_seed.click(fn=lambda: -1,inputs=None,outputs=i2i_seed,show_progress=False)
-                        i2i_reuse_seed = ToolButton(value=reuse_symbol, visible=True, elem_id=f"i2i_reuse_seed", label='Reuse seed')
-                        i2i_reuse_seed.click(fn=reuse_seed,inputs=i2i_image_output,outputs=i2i_seed,show_progress=False)
-                with gr.Column(elem_id=f"i2i_prompt_container", scale=4):
-                    with gr.Row(elem_id=f"i2i_param_container"):
-                        with gr.Column(elem_id="i2i_column_size", scale=4):
-                            i2i_width = gr.Slider(minimum=64, maximum=2048, step=8, label="Width", value=960, elem_id="i2i_width")
-                            i2i_height = gr.Slider(minimum=64, maximum=2048, step=8, label="Height", value=540, elem_id="i2i_height")
-                        with gr.Column(elem_id="i2i_dimensions_row", scale=1, elem_classes="dimensions-tools"):
-                            res_switch_btn = ToolButton(value=switch_values_symbol, elem_id="i2i_res_switch_btn")
-                            res_switch_btn.click(fn=switchWidthHeight, inputs=[i2i_width,i2i_height], outputs=[i2i_width,i2i_height], show_progress=False)
-                            detect_image_size_btn = ToolButton(value=detect_image_size_symbol, elem_id="i2i_detect_image_size_btn")
-                            detect_image_size_btn.click(fn=detect_image_size, inputs=[i2i_image_input, i2i_width, i2i_height], outputs=[i2i_width,i2i_height], show_progress=False)
-                    i2i_cfg_scale = gr.Slider(minimum=1.0,maximum=30.0,step=0.5,value=7.0,label="CFG scale", elem_id=f"i2i_cfg_scale")
-                    i2i_denoising_strength = gr.Slider(minimum=0.0,maximum=1.0,step=0.01,value=0.75,label="Denoising strength", elem_id=f"i2i_denoising_strength")
-                    i2i_sampling_steps = gr.Slider(minimum=1,maximum=150,step=1,value=20,label="Sampling steps", elem_id=f"i2i_sampling_steps")
-                    i2i_controlnet_strength = gr.Slider(minimum=0.0,maximum=1.0,step=0.05,value=0.15,label="controlnet strength", elem_id=f"i2i_controlnet_strength")
-            i2i_style_presets.change(
-                fn=set_parm_presets,
-                inputs=[i2i_style_presets,i2i_checkpoints,i2i_vae],
-                outputs=[i2i_checkpoints,i2i_vae,i2i_prompt_input,i2i_negativeprompt_input,i2i_width,i2i_height,i2i_cfg_scale,i2i_denoising_strength,i2i_sampling_steps]
-                )
-            i2i_submit.click(
-                fn=start_i2i, 
-                inputs=[i2i_style_presets,i2i_checkpoints,i2i_vae,i2i_prompt_input,i2i_negativeprompt_input,i2i_image_input,i2i_seed,i2i_width,i2i_height,i2i_cfg_scale,i2i_denoising_strength,i2i_sampling_steps,i2i_controlnet_strength], 
-                outputs=i2i_image_output
-                )
-            # i2i_skip.click(
-            #     fn=lambda: shared.state.skip(),
-            #     inputs=[],
-            #     outputs=[],
-            #     )
-            # i2i_interrupt.click(
-            #     fn=lambda: shared.state.interrupt(),
-            #     inputs=[],
-            #     outputs=[],
-            #     )
-        # return demo_ui
-        return [(demo_ui, "Style Converter", "style_converter_tab")]
+                    with gr.Row(elem_id=f"i2i_generate_box", elem_classes="generate-box", scale=0.1):
+                        i2i_interrupt = gr.Button('Interrupt', elem_id=f"i2i_interrupt", elem_classes="generate-box-interrupt")
+                        i2i_skip = gr.Button('Skip', elem_id=f"i2i_skip", elem_classes="generate-box-skip")
+                        i2i_submit = gr.Button('Generate', elem_id=f"i2i_generate", variant='primary')
+                styleconverter_selected_tab = gr.State(0)
+                with gr.Tab(label="img2img") as tab_img2img:
+                    i2i_image_input = gr.Image(type="filepath", width=640, height=360)
+                with gr.Tab(label="Batch") as tab_batch:
+                    i2ibatch_dir_input = gr.Textbox(label="Input directory", placeholder=u"填入图片所在目录", elem_id=f"i2ibatch_input")
+                    i2ibatch_prompttravel_checkbox = gr.Checkbox(value=False, label=u"启用动态提示词(Travel prompt)", elem_id=f"i2ibatch_prompttravel_check")
+                    i2ibatch_prompttravel_dataframe = gr.Dataframe(
+                        visible=False, 
+                        type="array",  
+                        label=u"下列提示词会添加到对应图片的生成过程之中，与常规提示词一起生效",
+                        show_label=True,
+                        headers=[u"图片名称", u"正向提示词"],
+                        datatype=["str", "str"],
+                        col_count=(2,"fixed"),
+                        interactive=True,
+                        elem_id=f"i2ibatch_prompttravel_dataframe")
+                    i2ibatch_dir_input.change(fn=i2ibatch_dir_input_change, inputs=[i2ibatch_dir_input], outputs=i2ibatch_prompttravel_dataframe)
+                    i2ibatch_prompttravel_checkbox.change(fn=i2ibatch_prompttravel_checkbox_change, inputs=[i2ibatch_prompttravel_checkbox], outputs=i2ibatch_prompttravel_dataframe)
+                styleconverter_tabs = [tab_img2img, tab_batch]
+                for i, tab in enumerate(styleconverter_tabs):
+                    tab.select(fn=lambda tabnum=i: tabnum, inputs=[], outputs=[styleconverter_selected_tab])
+
+            # 右边参数
+            with gr.Column(elem_id=f"styleconverter_rightcolimn", scale=0.3):
+                with gr.Row(elem_id=f"styleconverter_styles_row", variant="compact"):
+                    i2i_style_presets = gr.Dropdown(label="Style preset", elem_id=f"styleconverter_styles", choices = style_presets_list, value="Dafault", multiselect=False)
+                    i2i_refresh_button = ToolButton(value=refresh_symbol,visible=True)
+                    i2i_refresh_button.click(fn=refresh_presets, outputs=i2i_style_presets)
+                with gr.Row(elem_id=f"styleconverter_models_row", variant="compact"):
+                    # checkpoints
+                    i2i_checkpoints = gr.Dropdown(label="Stable Diffusion checkpoint", elem_id=f"i2i_checkpoints", choices=shared.list_checkpoint_tiles(), value=checkpoint, multiselect=False)
+                    i2i_checkpointsrefresh_button = ToolButton(value=refresh_symbol,visible=True)
+                    i2i_checkpointsrefresh_button.click(fn=shared.refresh_checkpoints, inputs=[], outputs=[])
+                    # vae
+                    i2i_vae = gr.Dropdown(label="SD VAE", elem_id=f"i2i_vae", choices=shared_items.sd_vae_items(), value=vae, multiselect=False)
+                    i2i_vaerefresh_button = ToolButton(value=refresh_symbol,visible=True)
+                    i2i_vaerefresh_button.click(fn=shared_items.refresh_vae_list, inputs=[], outputs=[])
+                    # i2i_checkpoints.change(fn=change_checkpoint, inputs=[i2i_checkpoints], outputs=[i2i_checkpoints])
+                    # i2i_vae.change(fn=change_vae, inputs=[i2i_vae], outputs=[i2i_vae])
+                with gr.Row(elem_id=f"i2i_param_container"):
+                    with gr.Column(elem_id="i2i_column_size", scale=4):
+                        i2i_width = gr.Slider(minimum=64, maximum=2048, step=8, label="Width", value=960, elem_id="i2i_width")
+                        i2i_height = gr.Slider(minimum=64, maximum=2048, step=8, label="Height", value=540, elem_id="i2i_height")
+                    with gr.Column(elem_id="i2i_dimensions_row", scale=1, elem_classes="dimensions-tools"):
+                        res_switch_btn = ToolButton(value=switch_values_symbol, elem_id="i2i_res_switch_btn")
+                        res_switch_btn.click(fn=switchWidthHeight, inputs=[i2i_width,i2i_height], outputs=[i2i_width,i2i_height], show_progress=False)
+                        detect_image_size_btn = ToolButton(value=detect_image_size_symbol, elem_id="i2i_detect_image_size_btn")      
+                i2i_cfg_scale = gr.Slider(minimum=1.0,maximum=30.0,step=0.5,value=7.0,label="CFG scale", elem_id=f"i2i_cfg_scale")
+                with gr.Row(scale=1, elem_id=f"i2i_seed_container", variant="compact"):
+                    i2i_seed = gr.Number(label='Seed', value=-1, elem_id=f"i2i_seed", container=False)
+                    i2i_random_seed = ToolButton(value=random_symbol, visible=True, elem_id=f"i2i_random_seed", label='Random seed')
+                    i2i_random_seed.click(fn=lambda: -1,inputs=None,outputs=i2i_seed,show_progress=False)
+                    i2i_reuse_seed = ToolButton(value=reuse_symbol, visible=True, elem_id=f"i2i_reuse_seed", label='Reuse seed')
+                    i2i_reuse_seed.click(fn=reuse_seed,inputs=styleconverter_image_output,outputs=i2i_seed,show_progress=False)
+                i2i_denoising_strength = gr.Slider(minimum=0.0,maximum=1.0,step=0.01,value=0.75,label="Denoising strength", elem_id=f"i2i_denoising_strength")
+                i2i_sampling_steps = gr.Slider(minimum=1,maximum=150,step=1,value=20,label="Sampling steps", elem_id=f"i2i_sampling_steps")
+                i2i_controlnet_strength = gr.Slider(minimum=0.0,maximum=1.0,step=0.05,value=0.15,label="controlnet strength", elem_id=f"i2i_controlnet_strength")
+
+        detect_image_size_btn.click(fn=detect_image_size, inputs=[i2i_image_input, i2i_width, i2i_height], outputs=[i2i_width,i2i_height], show_progress=False)      
+        i2i_style_presets.change(
+            fn=set_parm_presets,
+            inputs=[i2i_style_presets,i2i_checkpoints,i2i_vae],
+            outputs=[i2i_checkpoints,i2i_vae,i2i_prompt_input,i2i_negativeprompt_input,i2i_width,i2i_height,i2i_cfg_scale,i2i_denoising_strength,i2i_sampling_steps]
+            )
+        i2i_submit.click(
+            fn=start_generate, 
+            inputs=[styleconverter_selected_tab,
+                i2i_style_presets,i2i_checkpoints,i2i_vae,i2i_prompt_input,i2i_negativeprompt_input,i2i_image_input,i2i_seed,i2i_width,i2i_height,i2i_cfg_scale,i2i_denoising_strength,i2i_sampling_steps,i2i_controlnet_strength,
+                i2ibatch_dir_input,i2ibatch_prompttravel_checkbox,i2ibatch_prompttravel_dataframe], 
+            outputs=styleconverter_image_output
+            )
+        # i2i_skip.click(
+        #     fn=lambda: shared.state.skip(),
+        #     inputs=[],
+        #     outputs=[],
+        #     )
+        # i2i_interrupt.click(
+        #     fn=lambda: shared.state.interrupt(),
+        #     inputs=[],
+        #     outputs=[],
+        #     )
+    # return demo_ui
+    return [(demo_ui, "Style Converter", "style_converter_tab")]
 
 script_callbacks.on_ui_tabs(create_UI)
 # script_callbacks.on_ui_tabs([(create_UI(), "Style Converter", "style_converter_tab")])
