@@ -329,7 +329,6 @@ def start_generate(styleconver_selected_tab,i2i_prompt_styles,i2i_checkpoints,i2
     """
     # isbatch = styleconver_selected_tab==1
     images=[]
-    base64_bytes = numpy_to_base64(i2i_image_input)
     if styleconver_selected_tab == 0:
         image_base64_bytes = numpy_to_base64(i2i_image_input)
         payload=make_payload(i2i_prompt_styles,i2i_checkpoints,i2i_vae,i2i_prompt_input,i2i_negativeprompt_input,image_base64_bytes,i2i_seed,i2i_width,i2i_height,i2i_cfg_scale,
@@ -396,10 +395,10 @@ def create_UI():
                             lines=3, 
                             placeholder="Negative prompt (press Ctrl+Enter or Alt+Enter to generate)", 
                             elem_classes=["prompt"])
-                    with gr.Row(elem_id=f"i2i_generate_box", elem_classes="generate-box", scale=0.1):
-                        i2i_interrupt = gr.Button('Interrupt', elem_id=f"i2i_interrupt", elem_classes="generate-box-interrupt")
-                        i2i_skip = gr.Button('Skip', elem_id=f"i2i_skip", elem_classes="generate-box-skip")
-                        i2i_submit = gr.Button('Generate', elem_id=f"i2i_generate", variant='primary')
+                    # with gr.Row(elem_id=f"i2i_generate_box", elem_classes="generate-box", scale=0.1):
+                    #     i2i_interrupt = gr.Button('Interrupt', elem_id=f"i2i_interrupt", elem_classes="generate-box-interrupt")
+                    #     i2i_skip = gr.Button('Skip', elem_id=f"i2i_skip", elem_classes="generate-box-skip")
+                    i2i_submit = gr.Button('Generate', elem_id=f"i2i_generate", variant='primary', scale=0.1)
                 styleconverter_selected_tab = gr.State(0)
                 with gr.Tab(label="img2img") as tab_img2img:
                     i2i_image_input = gr.Image(type="filepath", width=640, height=360)
